@@ -1,5 +1,5 @@
 {
-  "name": "graphics-dashboard",
+  "name": "OverLine Studio",
   "version": "1.0.0",
   "description": "Graphics Dashboard Electron App",
   "main": "main.js",
@@ -32,3 +32,4 @@
     }
   }
 }
+
