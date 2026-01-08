@@ -14,7 +14,7 @@ This is a **beta/testing version**. The program is **not complete**, and functio
 
 The Windows installer (.exe) can be downloaded from the **Releases** page:
 
-[Releases](https://github.com/Logan-CSN/OverLine-Studio/releases/tag/v1.0.0)
+[Releases](https://github.com/Logan-CSN/OverLine-Studio/releases/tag/v1.1.0)
 
 ---
 
