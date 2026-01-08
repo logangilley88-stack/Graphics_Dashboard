@@ -2384,10 +2384,50 @@
 <div class="modal-overlay" id="footballStatsModal">
   <div class="edit-modal">
     <div class="edit-modal-header">
-      <h3>Football Team Statistics</h3>
+      <h3>Team Statistics</h3>
       <button class="modal-close-btn" id="footballStatsModalClose">×</button>
     </div>
     <div class="edit-modal-content">
+      <!-- XML Connection Section -->
+      <div id="xmlConnectionSection" style="margin-bottom: 20px; padding: 15px; background: #2a2a2a; border-radius: 8px; border: 1px solid #444;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h4 style="margin: 0; color: #fff; font-size: 14px;">XML Data Connection</h4>
+          <div id="xmlConnectionStatus" style="display: flex; align-items: center; gap: 6px;">
+            <div id="xmlStatusDot" style="width: 10px; height: 10px; border-radius: 50%; background: #666;"></div>
+            <span id="xmlStatusText" style="color: #999; font-size: 12px;">Not Connected</span>
+          </div>
+        </div>
+        
+        <div id="xmlConnectionCollapsed" style="display: block;">
+          <button id="connectXmlBtn" style="background: #3498db; border: none; color: white; font-size: 14px; padding: 10px 20px; border-radius: 4px; cursor: pointer; transition: background 0.2s ease; width: 100%;">
+            Connect XML
+          </button>
+        </div>
+        
+        <div id="xmlConnectionExpanded" style="display: none;">
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; color: #ccc; font-size: 12px; margin-bottom: 6px;">XML URL:</label>
+            <input type="text" id="xmlUrlInput" placeholder="Enter XML URL..." style="width: 100%; padding: 10px 12px; font-size: 13px; border-radius: 4px; border: none; background: #444; color: #eee; font-family: inherit; box-sizing: border-box;">
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button id="xmlConnectStartBtn" style="flex: 1; background: #27ae60; border: none; color: white; font-size: 14px; padding: 10px 16px; border-radius: 4px; cursor: pointer; transition: background 0.2s ease;">
+              Start Connection
+            </button>
+            <button id="xmlConnectStopBtn" style="flex: 1; background: #e74c3c; border: none; color: white; font-size: 14px; padding: 10px 16px; border-radius: 4px; cursor: pointer; transition: background 0.2s ease; display: none;">
+              Stop Connection
+            </button>
+            <button id="xmlConnectCancelBtn" style="background: #666; border: none; color: white; font-size: 14px; padding: 10px 16px; border-radius: 4px; cursor: pointer; transition: background 0.2s ease;">
+              Cancel
+            </button>
+          </div>
+          <div id="xmlDataPreview" style="margin-top: 12px; display: none;">
+            <label style="display: block; color: #ccc; font-size: 12px; margin-bottom: 6px;">Last Update:</label>
+            <div id="xmlLastUpdate" style="font-size: 11px; color: #888;"></div>
+            <div id="xmlDataFields" style="margin-top: 8px; max-height: 150px; overflow-y: auto; background: #333; padding: 10px; border-radius: 4px; font-size: 11px; color: #aaa;"></div>
+          </div>
+        </div>
+      </div>
+      
       <div class="edit-input-group">
         <label for="statSelect">Select Statistic:</label>
         <select id="statSelect" style="width: 100%; padding: 10px 12px; font-size: 14px; border-radius: 4px; border: none; background: #444; color: #eee; font-family: inherit; box-sizing: border-box;">
@@ -3907,6 +3947,498 @@
       hideFootballStatsModal();
     }
   });
+
+  // ============================================================================
+  // XML DATA CONNECTION SYSTEM
+  // Fetches scorebug data from external XML sources with auto-refresh
+  // ============================================================================
+  
+  let xmlConnectionInterval = null;
+  let xmlConnectionUrl = '';
+  let xmlConnectionActive = false;
+  
+  // XML Connection UI Elements
+  const connectXmlBtn = document.getElementById('connectXmlBtn');
+  const xmlConnectionCollapsed = document.getElementById('xmlConnectionCollapsed');
+  const xmlConnectionExpanded = document.getElementById('xmlConnectionExpanded');
+  const xmlUrlInput = document.getElementById('xmlUrlInput');
+  const xmlConnectStartBtn = document.getElementById('xmlConnectStartBtn');
+  const xmlConnectStopBtn = document.getElementById('xmlConnectStopBtn');
+  const xmlConnectCancelBtn = document.getElementById('xmlConnectCancelBtn');
+  const xmlStatusDot = document.getElementById('xmlStatusDot');
+  const xmlStatusText = document.getElementById('xmlStatusText');
+  const xmlDataPreview = document.getElementById('xmlDataPreview');
+  const xmlLastUpdate = document.getElementById('xmlLastUpdate');
+  const xmlDataFields = document.getElementById('xmlDataFields');
+  
+  // Show expanded XML connection UI
+  connectXmlBtn.addEventListener('click', () => {
+    xmlConnectionCollapsed.style.display = 'none';
+    xmlConnectionExpanded.style.display = 'block';
+  });
+  
+  // Cancel/collapse XML connection UI
+  xmlConnectCancelBtn.addEventListener('click', () => {
+    if (!xmlConnectionActive) {
+      xmlConnectionExpanded.style.display = 'none';
+      xmlConnectionCollapsed.style.display = 'block';
+    }
+  });
+  
+  // Start XML connection
+  xmlConnectStartBtn.addEventListener('click', async () => {
+    const url = xmlUrlInput.value.trim();
+    if (!url) {
+      showNotification('Please enter an XML URL', 'warning');
+      return;
+    }
+    
+    xmlConnectionUrl = url;
+    
+    // Test the connection first
+    try {
+      showNotification('Testing XML connection...', 'success');
+      const success = await fetchAndParseXML();
+      
+      if (success) {
+        xmlConnectionActive = true;
+        xmlConnectStartBtn.style.display = 'none';
+        xmlConnectStopBtn.style.display = 'block';
+        xmlConnectCancelBtn.style.display = 'none';
+        xmlUrlInput.disabled = true;
+        
+        updateXMLConnectionStatus('connected');
+        xmlDataPreview.style.display = 'block';
+        
+        // Start 3-second auto-refresh
+        xmlConnectionInterval = setInterval(fetchAndParseXML, 3000);
+        
+        showNotification('XML connection established! Auto-refreshing every 3 seconds.', 'success');
+      }
+    } catch (error) {
+      showNotification(`Connection failed: ${error.message}`, 'error');
+      updateXMLConnectionStatus('error');
+    }
+  });
+  
+  // Stop XML connection
+  xmlConnectStopBtn.addEventListener('click', () => {
+    stopXMLConnection();
+    showNotification('XML connection stopped', 'warning');
+  });
+  
+  function stopXMLConnection() {
+    if (xmlConnectionInterval) {
+      clearInterval(xmlConnectionInterval);
+      xmlConnectionInterval = null;
+    }
+    
+    xmlConnectionActive = false;
+    xmlConnectStartBtn.style.display = 'block';
+    xmlConnectStopBtn.style.display = 'none';
+    xmlConnectCancelBtn.style.display = 'block';
+    xmlUrlInput.disabled = false;
+    
+    updateXMLConnectionStatus('disconnected');
+  }
+  
+  function updateXMLConnectionStatus(status) {
+    switch (status) {
+      case 'connected':
+        xmlStatusDot.style.background = '#27ae60';
+        xmlStatusText.textContent = 'Connected';
+        xmlStatusText.style.color = '#27ae60';
+        break;
+      case 'fetching':
+        xmlStatusDot.style.background = '#f39c12';
+        xmlStatusText.textContent = 'Fetching...';
+        xmlStatusText.style.color = '#f39c12';
+        break;
+      case 'error':
+        xmlStatusDot.style.background = '#e74c3c';
+        xmlStatusText.textContent = 'Error';
+        xmlStatusText.style.color = '#e74c3c';
+        break;
+      case 'disconnected':
+      default:
+        xmlStatusDot.style.background = '#666';
+        xmlStatusText.textContent = 'Not Connected';
+        xmlStatusText.style.color = '#999';
+        break;
+    }
+  }
+  
+  async function fetchAndParseXML() {
+    if (!xmlConnectionUrl) return false;
+    
+    try {
+      updateXMLConnectionStatus('fetching');
+      
+      const response = await fetch(xmlConnectionUrl);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const text = await response.text();
+      
+      // Try parsing as XML first, then JSON
+      let data = {};
+      try {
+        // Try XML parsing
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(text, 'text/xml');
+        
+        // Check for parse errors
+        const parseError = xmlDoc.querySelector('parsererror');
+        if (parseError) {
+          // Try JSON parsing instead
+          data = JSON.parse(text);
+        } else {
+          // Convert XML to object
+          data = xmlToObject(xmlDoc.documentElement);
+        }
+      } catch (e) {
+        // Try JSON parsing as fallback
+        try {
+          data = JSON.parse(text);
+        } catch (jsonErr) {
+          throw new Error('Invalid XML or JSON format');
+        }
+      }
+      
+      // Apply data to scorebug based on current sport
+      applyXMLDataToScorebug(data);
+      
+      // Update preview
+      xmlLastUpdate.textContent = new Date().toLocaleTimeString();
+      xmlDataFields.innerHTML = formatDataForPreview(data);
+      
+      updateXMLConnectionStatus('connected');
+      return true;
+      
+    } catch (error) {
+      console.error('[XML Connection] Error:', error);
+      updateXMLConnectionStatus('error');
+      return false;
+    }
+  }
+  
+  // Convert XML DOM to JavaScript object
+  function xmlToObject(node) {
+    const obj = {};
+    
+    // Handle text content
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent.trim();
+    }
+    
+    // Process child nodes
+    for (const child of node.childNodes) {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const key = child.tagName;
+        const value = child.childNodes.length === 1 && child.childNodes[0].nodeType === Node.TEXT_NODE
+          ? child.textContent.trim()
+          : xmlToObject(child);
+        
+        if (obj[key]) {
+          // If key exists, convert to array
+          if (!Array.isArray(obj[key])) {
+            obj[key] = [obj[key]];
+          }
+          obj[key].push(value);
+        } else {
+          obj[key] = value;
+        }
+      }
+    }
+    
+    return obj;
+  }
+  
+  // Apply XML data to scorebug fields based on sport
+  function applyXMLDataToScorebug(data) {
+    console.log('[XML Connection] Applying data:', data);
+    
+    // Flatten nested data if needed
+    const flatData = flattenObject(data);
+    
+    // Common mappings (case-insensitive matching)
+    const mappings = {
+      // Score fields
+      'homescore': updateHomeScore,
+      'home_score': updateHomeScore,
+      'homepoints': updateHomeScore,
+      'awayscore': updateAwayScore,
+      'away_score': updateAwayScore,
+      'awaypoints': updateAwayScore,
+      'visitorscore': updateAwayScore,
+      'visitor_score': updateAwayScore,
+      
+      // Period/Quarter
+      'quarter': updatePeriod,
+      'period': updatePeriod,
+      'qtr': updatePeriod,
+      'set': updatePeriod,
+      'inning': updatePeriod,
+      
+      // Clock/Time
+      'clock': updateClock,
+      'time': updateClock,
+      'gameclock': updateClock,
+      'game_clock': updateClock,
+      
+      // Basketball/Football specific - Timeouts
+      'hometimeouts': updateHomeTimeouts,
+      'home_timeouts': updateHomeTimeouts,
+      'hometoremaining': updateHomeTimeouts,
+      'awaytimeouts': updateAwayTimeouts,
+      'away_timeouts': updateAwayTimeouts,
+      'awaytoremaining': updateAwayTimeouts,
+      'shotclock': updateShotClock,
+      'shot_clock': updateShotClock,
+      
+      // Football specific
+      'down': updateDown,
+      'distance': updateDistance,
+      'ytg': updateDistance,
+      'yards_to_go': updateDistance,
+      'ballposition': updateBallPosition,
+      'ball_on': updateBallPosition,
+      'ballon': updateBallPosition,
+      'possession': updatePossession,
+      
+      // Team names
+      'hometeam': updateHomeTeamName,
+      'home_team': updateHomeTeamName,
+      'homename': updateHomeTeamName,
+      'awayteam': updateAwayTeamName,
+      'away_team': updateAwayTeamName,
+      'awayname': updateAwayTeamName,
+      'visitorteam': updateAwayTeamName,
+      'visitor_team': updateAwayTeamName
+    };
+    
+    // Create an object to store current XML values for transmission
+    const xmlData = {};
+    
+    // Apply each mapping and store value for state
+    for (const [key, value] of Object.entries(flatData)) {
+      const lowerKey = key.toLowerCase().replace(/[^a-z0-9_]/g, '');
+      if (mappings[lowerKey] && value !== undefined && value !== null && value !== '') {
+        try {
+          mappings[lowerKey](value);
+          xmlData[lowerKey] = value;
+        } catch (e) {
+          console.warn(`[XML Connection] Failed to apply ${key}:`, e);
+        }
+      }
+    }
+    
+    // Sync state to graphics window with XML data included
+    if (typeof saveScoreboardState === 'function') {
+      saveScoreboardState({ xmlData: xmlData });
+    }
+  }
+  
+  // Flatten nested object for easier mapping
+  function flattenObject(obj, prefix = '') {
+    const result = {};
+    
+    for (const [key, value] of Object.entries(obj)) {
+      const newKey = prefix ? `${prefix}_${key}` : key;
+      
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        Object.assign(result, flattenObject(value, newKey));
+      } else {
+        result[newKey] = value;
+      }
+    }
+    
+    return result;
+  }
+  
+  // Update functions for scorebug fields
+  function updateHomeScore(value) {
+    const scoreNum = parseInt(value);
+    if (!isNaN(scoreNum)) {
+      const homeScoreInput = document.getElementById('homeScoreInput');
+      if (homeScoreInput && homeScoreInput.value !== String(scoreNum)) {
+        homeScoreInput.value = scoreNum;
+        homeScoreInput.dispatchEvent(new Event('input'));
+      }
+    }
+  }
+  
+  function updateAwayScore(value) {
+    const scoreNum = parseInt(value);
+    if (!isNaN(scoreNum)) {
+      const awayScoreInput = document.getElementById('awayScoreInput');
+      if (awayScoreInput && awayScoreInput.value !== String(scoreNum)) {
+        awayScoreInput.value = scoreNum;
+        awayScoreInput.dispatchEvent(new Event('input'));
+      }
+    }
+  }
+  
+  function updatePeriod(value) {
+    const periodSelect = document.getElementById('periodSelect');
+    if (periodSelect) {
+      // Try to match period value
+      const periodNum = parseInt(value);
+      if (!isNaN(periodNum)) {
+        for (const option of periodSelect.options) {
+          if (option.value === String(periodNum) || option.textContent.includes(String(periodNum))) {
+            periodSelect.value = option.value;
+            periodSelect.dispatchEvent(new Event('change'));
+            break;
+          }
+        }
+      } else {
+        // Try text matching (e.g., "1st", "2nd", "HALF")
+        for (const option of periodSelect.options) {
+          if (option.textContent.toLowerCase().includes(value.toString().toLowerCase())) {
+            periodSelect.value = option.value;
+            periodSelect.dispatchEvent(new Event('change'));
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+  function updateClock(value) {
+    const clockInput = document.getElementById('clockInput');
+    if (clockInput && clockInput.value !== String(value)) {
+      clockInput.value = value;
+      clockInput.dispatchEvent(new Event('input'));
+    }
+  }
+  
+  function updateShotClock(value) {
+    const shotClockInput = document.getElementById('shotClockInput');
+    if (shotClockInput && shotClockInput.value !== String(value)) {
+      shotClockInput.value = value;
+      shotClockInput.dispatchEvent(new Event('input'));
+    }
+  }
+  
+  function updateDown(value) {
+    const downSelect = document.getElementById('downSelect');
+    if (downSelect) {
+      const downNum = parseInt(value);
+      if (!isNaN(downNum) && downNum >= 1 && downNum <= 4) {
+        downSelect.value = downNum;
+        downSelect.dispatchEvent(new Event('change'));
+      }
+    }
+  }
+  
+  function updateDistance(value) {
+    const distanceInput = document.getElementById('distanceInput');
+    if (distanceInput) {
+      distanceInput.value = value;
+      distanceInput.dispatchEvent(new Event('input'));
+    }
+  }
+  
+  function updateBallPosition(value) {
+    const ballPositionInput = document.getElementById('ballPositionInput');
+    if (ballPositionInput) {
+      ballPositionInput.value = value;
+      ballPositionInput.dispatchEvent(new Event('input'));
+    }
+  }
+  
+  function updatePossession(value) {
+    // Try to set possession based on value
+    const lowerVal = value.toString().toLowerCase();
+    if (lowerVal === 'home' || lowerVal === '1' || lowerVal === 'h') {
+      const homePossBtn = document.getElementById('homePossessionBtn');
+      if (homePossBtn) homePossBtn.click();
+    } else if (lowerVal === 'away' || lowerVal === '2' || lowerVal === 'a' || lowerVal === 'visitor') {
+      const awayPossBtn = document.getElementById('awayPossessionBtn');
+      if (awayPossBtn) awayPossBtn.click();
+    }
+  }
+  
+  function updateHomeTimeouts(value) {
+    const timeoutNum = parseInt(value);
+    if (!isNaN(timeoutNum) && timeoutNum >= 0) {
+      // Clamp to sport-specific maximum
+      let maxTimeouts = MAX_TIMEOUTS;
+      if (currentSport === 'football') maxTimeouts = MAX_TIMEOUTS_FOOTBALL;
+      else if (currentSport === 'volleyball') maxTimeouts = MAX_TIMEOUTS_VOLLEYBALL;
+      
+      homeTimeoutsLeft = Math.min(Math.max(0, timeoutNum), maxTimeouts);
+      const homeTimeoutCountInput = document.getElementById('homeTimeoutCount');
+      if (homeTimeoutCountInput) {
+        updateTimeoutDisplay(homeTimeoutCountInput, homeTimeoutsLeft);
+        // Re-sync button states
+        const homeIncBtn = document.getElementById('homeTimeoutIncBtn');
+        const homeDecBtn = document.getElementById('homeTimeoutDecBtn');
+        if (homeIncBtn) homeIncBtn.disabled = (homeTimeoutsLeft >= maxTimeouts);
+        if (homeDecBtn) homeDecBtn.disabled = (homeTimeoutsLeft <= 0);
+      }
+    }
+  }
+  
+  function updateAwayTimeouts(value) {
+    const timeoutNum = parseInt(value);
+    if (!isNaN(timeoutNum) && timeoutNum >= 0) {
+      // Clamp to sport-specific maximum
+      let maxTimeouts = MAX_TIMEOUTS;
+      if (currentSport === 'football') maxTimeouts = MAX_TIMEOUTS_FOOTBALL;
+      else if (currentSport === 'volleyball') maxTimeouts = MAX_TIMEOUTS_VOLLEYBALL;
+      
+      awayTimeoutsLeft = Math.min(Math.max(0, timeoutNum), maxTimeouts);
+      const awayTimeoutCountInput = document.getElementById('awayTimeoutCount');
+      if (awayTimeoutCountInput) {
+        updateTimeoutDisplay(awayTimeoutCountInput, awayTimeoutsLeft);
+        // Re-sync button states
+        const awayIncBtn = document.getElementById('awayTimeoutIncBtn');
+        const awayDecBtn = document.getElementById('awayTimeoutDecBtn');
+        if (awayIncBtn) awayIncBtn.disabled = (awayTimeoutsLeft >= maxTimeouts);
+        if (awayDecBtn) awayDecBtn.disabled = (awayTimeoutsLeft <= 0);
+      }
+    }
+  }
+  
+  function updateHomeTeamName(value) {
+    const homeTeamInput = document.getElementById('homeTeamName');
+    if (homeTeamInput && homeTeamInput.value !== String(value)) {
+      homeTeamInput.value = value;
+      homeTeamInput.dispatchEvent(new Event('input'));
+    }
+  }
+  
+  function updateAwayTeamName(value) {
+    const awayTeamInput = document.getElementById('awayTeamName');
+    if (awayTeamInput && awayTeamInput.value !== String(value)) {
+      awayTeamInput.value = value;
+      awayTeamInput.dispatchEvent(new Event('input'));
+    }
+  }
+  
+  // Format data for preview display
+  function formatDataForPreview(data) {
+    const flat = flattenObject(data);
+    let html = '';
+    for (const [key, value] of Object.entries(flat)) {
+      if (value !== undefined && value !== null && value !== '') {
+        html += `<div><strong>${key}:</strong> ${value}</div>`;
+      }
+    }
+    return html || '<em>No data received</em>';
+  }
+  
+  // Stop XML connection when modal closes
+  const originalHideFootballStatsModal = hideFootballStatsModal;
+  hideFootballStatsModal = function() {
+    // Don't stop connection when closing modal - let it run in background
+    originalHideFootballStatsModal();
+  };
+  
+  // ============================================================================
+  // END XML DATA CONNECTION SYSTEM
+  // ============================================================================
 
   statSelect.addEventListener('change', () => {
     if (statSelect.value) {
