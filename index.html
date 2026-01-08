@@ -3725,6 +3725,8 @@
       showFootballStatsModal();
     } else if (currentSport === 'volleyball') {
       showVolleyballStatsModal();
+    } else if (currentSport === 'basketball') {
+      showBasketballStatsModal();
     }
   });
 
@@ -3767,8 +3769,8 @@
 
   // Disable edit buttons for graphics with no editable elements
   function updateEditButtonStates() {
-    // Enable scorebar edit for football and volleyball, disable for other sports
-    document.getElementById('scorebarEditBtn').disabled = currentSport !== 'football' && currentSport !== 'volleyball';
+    // Enable scorebar edit for football, volleyball, and basketball
+    document.getElementById('scorebarEditBtn').disabled = currentSport !== 'football' && currentSport !== 'volleyball' && currentSport !== 'basketball';
     document.getElementById('miniBugEditBtn').disabled = true;
     document.getElementById('locatorEditBtn').disabled = true;
     document.getElementById('lowerThirdEditBtn').disabled = false;
@@ -3785,6 +3787,9 @@
   
   // Volleyball stats management
   let volleyballStats = {};
+  
+  // Basketball stats management
+  let basketballStats = {};
   
   // Football stats modal elements
   const footballStatsModal = document.getElementById('footballStatsModal');
@@ -3804,6 +3809,7 @@
     updateStatsTeamLabels();
     updateStatsDisplay();
     updateStatDisplayButtons();
+    updateStatsModalTitle('Football');
     // Update dropdown options for football
     statSelect.innerHTML = `
       <option value="">Choose a statistic...</option>
@@ -3828,6 +3834,7 @@
     updateStatsTeamLabels();
     updateVolleyballStatsDisplay();
     updateStatDisplayButtons();
+    updateStatsModalTitle('Volleyball');
     // Update dropdown options for volleyball
     statSelect.innerHTML = `
       <option value="">Choose a statistic...</option>
@@ -3842,6 +3849,38 @@
       <option value="service_errors">Service Errors</option>
     `;
     footballStatsModal.classList.add('show');
+  }
+  
+  function showBasketballStatsModal() {
+    updateStatsTeamLabels();
+    updateBasketballStatsDisplay();
+    updateStatDisplayButtons();
+    updateStatsModalTitle('Basketball');
+    // Update dropdown options for basketball
+    statSelect.innerHTML = `
+      <option value="">Choose a statistic...</option>
+      <option value="points">Points</option>
+      <option value="rebounds">Rebounds</option>
+      <option value="assists">Assists</option>
+      <option value="steals">Steals</option>
+      <option value="blocks">Blocks</option>
+      <option value="turnovers">Turnovers</option>
+      <option value="field_goals">Field Goals</option>
+      <option value="field_goal_pct">Field Goal %</option>
+      <option value="three_pointers">3-Pointers Made</option>
+      <option value="three_point_pct">3-Point %</option>
+      <option value="free_throws">Free Throws</option>
+      <option value="free_throw_pct">Free Throw %</option>
+      <option value="fouls">Fouls</option>
+    `;
+    footballStatsModal.classList.add('show');
+  }
+  
+  function updateStatsModalTitle(sportName) {
+    const modalTitle = footballStatsModal.querySelector('.edit-modal-header h3');
+    if (modalTitle) {
+      modalTitle.textContent = `${sportName} Statistics`;
+    }
   }
 
   function hideFootballStatsModal() {
@@ -3910,6 +3949,32 @@
     html += '</div>';
     statsListDisplay.innerHTML = html;
   }
+  
+  function updateBasketballStatsDisplay() {
+    if (Object.keys(basketballStats).length === 0) {
+      statsListDisplay.innerHTML = '<p style="color: #ccc; text-align: center; font-style: italic;">No statistics entered yet</p>';
+      return;
+    }
+
+    const homeName = homeNameInput.value.trim() || 'Home Team';
+    const awayName = awayNameInput.value.trim() || 'Away Team';
+    
+    let html = '<div style="display: grid; grid-template-columns: 1fr auto auto; gap: 15px; align-items: center; font-size: 14px;">';
+    html += `<div style="font-weight: bold; color: #fff;">Statistic</div>`;
+    html += `<div style="font-weight: bold; color: #fff; text-align: center;">${homeName}</div>`;
+    html += `<div style="font-weight: bold; color: #fff; text-align: center;">${awayName}</div>`;
+    
+    Object.keys(basketballStats).forEach(statKey => {
+      const stat = basketballStats[statKey];
+      const statName = getStatDisplayName(statKey);
+      html += `<div style="color: #eee;">${statName}</div>`;
+      html += `<div style="color: #eee; text-align: center;">${stat.home || '-'}</div>`;
+      html += `<div style="color: #eee; text-align: center;">${stat.away || '-'}</div>`;
+    });
+    
+    html += '</div>';
+    statsListDisplay.innerHTML = html;
+  }
 
   function getStatDisplayName(statKey) {
     const displayNames = {
@@ -3934,7 +3999,16 @@
       'assists': 'Assists',
       'errors': 'Errors',
       'hitting_percentage': 'Hitting %',
-      'service_errors': 'Service Errors'
+      'service_errors': 'Service Errors',
+      'points': 'Points',
+      'rebounds': 'Rebounds',
+      'steals': 'Steals',
+      'field_goal_pct': 'Field Goal %',
+      'three_pointers': '3-Pointers Made',
+      'three_point_pct': '3-Point %',
+      'free_throws': 'Free Throws',
+      'free_throw_pct': 'Free Throw %',
+      'fouls': 'Fouls'
     };
     return displayNames[statKey] || statKey;
   }
@@ -4446,7 +4520,7 @@
       updateStatsTeamLabels();
       
       // Pre-fill with existing values if available
-      const stats = currentSport === 'volleyball' ? volleyballStats : footballStats;
+      const stats = currentSport === 'volleyball' ? volleyballStats : (currentSport === 'basketball' ? basketballStats : footballStats);
       if (stats[statSelect.value]) {
         homeStatValue.value = stats[statSelect.value].home || '';
         awayStatValue.value = stats[statSelect.value].away || '';
@@ -4497,6 +4571,13 @@
       volleyballStats[selectedStat].home = homeValue;
       volleyballStats[selectedStat].away = awayValue;
       updateVolleyballStatsDisplay();
+    } else if (currentSport === 'basketball') {
+      if (!basketballStats[selectedStat]) {
+        basketballStats[selectedStat] = {};
+      }
+      basketballStats[selectedStat].home = homeValue;
+      basketballStats[selectedStat].away = awayValue;
+      updateBasketballStatsDisplay();
     } else {
       if (!footballStats[selectedStat]) {
         footballStats[selectedStat] = {};
@@ -4534,6 +4615,9 @@
       if (currentSport === 'volleyball') {
         volleyballStats = {};
         updateVolleyballStatsDisplay();
+      } else if (currentSport === 'basketball') {
+        basketballStats = {};
+        updateBasketballStatsDisplay();
       } else {
         footballStats = {};
         updateStatsDisplay();
@@ -4589,7 +4673,7 @@
       return;
     }
 
-    const stats = currentSport === 'volleyball' ? volleyballStats : footballStats;
+    const stats = currentSport === 'volleyball' ? volleyballStats : (currentSport === 'basketball' ? basketballStats : footballStats);
     if (!stats[selectedStat] || (!stats[selectedStat].home && !stats[selectedStat].away)) {
       showNotification('Please save the statistic values first', 'warning');
       return;
@@ -6101,6 +6185,7 @@
       volleyballSet: currentSet,
       footballStats: footballStats,
       volleyballStats: volleyballStats,
+      basketballStats: basketballStats,
       statDisplayVisible: statDisplayVisible,
       currentDisplayedStat: currentDisplayedStat,
       bracketTeams: bracketTeams,
@@ -6336,6 +6421,11 @@
     // Load volleyball stats
     if (saved.volleyballStats) {
       volleyballStats = saved.volleyballStats;
+    }
+    
+    // Load basketball stats
+    if (saved.basketballStats) {
+      basketballStats = saved.basketballStats;
     }
 
     // Load football section visibility state
